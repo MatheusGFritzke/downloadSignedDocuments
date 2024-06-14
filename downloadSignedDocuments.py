@@ -1,15 +1,19 @@
 import os
 import requests
 import json
+import logging
 from multiprocessing import Process
 from concurrent.futures import ThreadPoolExecutor
 
-download_folder = "documentos-lisodontologia"
+download_folder = "documentos-avelar"
 os.makedirs(download_folder, exist_ok=True)
+
+logging.basicConfig(filename='error_documents.log', level=logging.ERROR,
+                    format='%(asctime)s:%(levelname)s:%(message)s')
 
 def download_document(document, headers, download_folder):
     newEditor = document.get('NewEditor') == "X"
-    digitalSignature = document.get("eDigitalSignatureSigned") == "X"
+    digitalSignature = document.get("eDigitalSignatureSigned") == "X" or document.get("eDigitalSignatureClinicSigned") == "X";
     
     base_url = ""
     
@@ -32,7 +36,8 @@ def download_document(document, headers, download_folder):
             response = requests.get(url, headers=headers)
 
         if response.status_code == 200:
-            documentName = os.path.join(download_folder, f"{document['patientName']}-{document['eSignatureId']}.pdf")
+            os.makedirs(f"{download_folder}/{document['patientName']}", exist_ok=True)
+            documentName = os.path.join(f"{download_folder}/{document['patientName']}", f"{document['patientName']}-{document['eSignatureId']}.pdf")
             if newEditor or digitalSignature:
                 intarray = response.json().get('data', [])
                 with open(documentName, "wb") as file:
@@ -45,9 +50,11 @@ def download_document(document, headers, download_folder):
             print(f"Download do arquivo {documentName} concluído com sucesso!")
         else:
             print(f"Falha ao baixar o arquivo para o código {document['eSignatureId']}. Status code: {response.status_code}")
+            logging.error(document)
 
-    except Exception as e:
+    except Exception as e: 
         print(f"Erro durante a execução: {e}")
+        logging.error(document)
 
 def download_documents(file_name):
     with open(file_name, 'r') as f:
@@ -70,7 +77,7 @@ def download_documents(file_name):
     print(f"\nTodos os arquivos foram baixados do {file_name}. Total de arquivos: {total_files}")
 
 if __name__ == '__main__':
-    files = ["documentDownload_1.json"]
+    files = ["documentDownload_1.json", "documentDownload_2.json", "documentDownload_3.json", "documentDownload_4.json"]
 
     processes = []
     for file_name in files:
